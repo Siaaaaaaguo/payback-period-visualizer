@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payback Period Visualizer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the visualization */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0ffef; /* Light green-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 1.5rem; /* More rounded corners */
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15); /* Stronger shadow */
+            padding: 2.5rem;
+            max-width: 1000px; /* Slightly wider container */
+            width: 100%;
+            text-align: center;
+        }
+        .input-section {
+            background-color: #f8fafc; /* Lighter background for input section */
+            padding: 1.5rem;
+            border-radius: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            width: 100%;
+        }
+        .input-group label {
+            font-weight: bold;
+            margin-bottom: 0.4rem;
+            color: #4a5568;
+            font-size: 0.95rem;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 0.6rem;
+            font-size: 1rem;
+            color: #2d3748;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .input-group input:focus {
+            border-color: #63b3ed;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+            outline: none;
+        }
+        .cash-flow-inputs-container {
+            display: flex;
+            flex-wrap: wrap; /* Allow inputs to wrap to next line */
+            gap: 2.5rem; /* Increased gap between input columns */
+            justify-content: center; /* Center the input columns */
+            margin-top: 1rem;
+        }
+        .cash-flow-input-column {
+            /* Adjusted flex-basis to account for larger gap and narrower inputs */
+            flex: 0 0 calc(16.66% - 2.08rem); /* 6 columns per row, adjusted for gap (5 * 2.5rem / 6) */
+            min-width: 75px; /* Minimum width for each input column, made narrower */
+            max-width: 95px; /* Max width to prevent them from becoming too wide */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        @media (max-width: 1024px) { /* Adjust for larger tablets/laptops */
+            .cash-flow-input-column {
+                flex: 0 0 calc(20% - 2rem); /* 5 columns, adjusted for gap (4 * 2.5rem / 5) */
+            }
+        }
+        @media (max-width: 768px) {
+            .cash-flow-input-column {
+                flex: 0 0 calc(33.33% - 1.66rem); /* 3 columns on medium screens, adjusted for gap (2 * 2.5rem / 3) */
+            }
+        }
+        @media (max-width: 480px) {
+            .cash-flow-input-column {
+                flex: 0 0 calc(50% - 1.25rem); /* 2 columns on small screens, adjusted for gap (1 * 2.5rem / 2) */
+            }
+        }
+
+        .button {
+            padding: 0.8rem 1.8rem;
+            background-color: #4299e1; /* Blue button */
+            color: white;
+            border-radius: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .button:hover {
+            background-color: #3182ce;
+            transform: translateY(-1px);
+        }
+        .button:active {
+            transform: translateY(1px);
+            box-shadow: none;
+        }
+        .error-message {
+            color: #ef4444;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            text-align: left;
+        }
+        .payback-display {
+            font-size: 1.25rem; /* Larger font for payback period */
+            font-weight: bold;
+            color: #10b981; /* Green color */
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            min-height: 1.5rem; /* Ensure space even if no payback period */
+        }
+
+        /* Chart specific styles */
+        .chart-wrapper {
+            overflow-x: auto;
+            border-radius: 0.75rem;
+            margin-top: 2rem;
+            background-color: #e2e8f0;
+            padding-bottom: 20px; /* Add padding for scrollbar */
+        }
+        .chart-container {
+            position: relative;
+            min-width: 100%;
+            height: 300px;
+            overflow: hidden;
+        }
+        .axis-line {
+            position: absolute;
+            background-color: #4a5568;
+        }
+        .x-axis {
+            bottom: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+        }
+        .y-axis {
+            top: 0;
+            height: 100%;
+            width: 2px;
+        }
+        .cash-flow-bar {
+            position: absolute;
+            width: 40px;
+            border-radius: 0.25rem;
+            transition: height 0.5s ease-in-out, background-color 0.5s ease-in-out;
+        }
+        .initial-investment {
+            position: absolute;
+            width: 40px;
+            background-color: #ef4444;
+            border-radius: 0.25rem;
+            bottom: 50%;
+            transform: translateY(1px);
+            transition: height 0.5s ease-in-out;
+        }
+        .cumulative-line {
+            position: absolute;
+            height: 2px;
+            background-color: #3b82f6;
+            transition: width 0.5s ease-in-out, transform 0.5s ease-in-out;
+        }
+        .payback-point-marker {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #ef4444; /* Changed to Red */
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+        /* Removed payback-arrow and its ::after pseudo-element as the label is moved */
+
+        .label {
+            position: absolute;
+            font-size: 0.875rem;
+            color: #4a5568;
+            white-space: nowrap;
+        }
+        .cash-flow-value-label {
+            position: absolute;
+            font-size: 0.75rem; /* Smaller font for value on bar */
+            font-weight: bold;
+            color: #ffffff; /* White text for contrast on bars */
+            text-align: center;
+            width: 100%; /* Take full width of bar */
+            pointer-events: none; /* Do not block hover */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Add shadow for readability */
+        }
+        .tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            z-index: 20;
+        }
+        .cash-flow-bar:hover + .tooltip, .initial-investment:hover + .tooltip {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">Payback Period Visualization</h1>
+        <p class="text-gray-600 mb-6">
+            The payback period is the time it takes for an investment to generate enough cash flow to recover its initial cost.
+            The chart below illustrates how initial investment is recovered through cash inflows.
+        </p>
+
+        <div class="input-section">
+            <div class="flex flex-col md:flex-row gap-4 mb-4 justify-center">
+                <div class="input-group flex-grow">
+                    <label for="initialInvestmentInput">Initial Investment:</label>
+                    <input type="number" id="initialInvestmentInput" value="100" placeholder="Enter initial investment amount">
+                </div>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-700 mb-3">Cash Flows per Period:</h3>
+            <div id="cashFlowInputsContainer" class="cash-flow-inputs-container">
+                <!-- Cash flow inputs will be dynamically added here -->
+            </div>
+            <button id="addPeriodButton" class="button mt-4">Add Year</button>
+            <div id="errorMessage" class="error-error-message hidden"></div>
+        </div>
+
+        <div id="paybackPeriodDisplay" class="payback-display">
+            <!-- Payback Period will be displayed here -->
+        </div>
+
+        <div class="chart-wrapper" id="chartWrapper">
+            <div class="chart-container" id="chartContainer">
+                <!-- X-axis -->
+                <div class="axis-line x-axis"></div>
+                <!-- Y-axis -->
+                <div class="axis-line y-axis"></div>
+
+                <!-- Labels for axes -->
+                <div class="label axis-label" id="xAxisLabel" style="bottom: 40%; left: 50%; transform: translateX(-50%); font-weight: bold;">Time (Years)</div>
+                <div class="label axis-label" id="yAxisMainLabel" style="top: 50%; left: 0%; transform: rotate(-90deg) translateX(-50%); transform-origin: top left; font-weight: bold;">Cumulative Cash Flow</div>
+
+                <!-- Chart elements will be dynamically generated here -->
+            </div>
+        </div>
+
+        <div class="mt-8 text-left text-gray-700">
+            <h2 class="text-xl font-semibold mb-2">Explanation:</h2>
+            <ul class="list-disc list-inside space-y-2">
+                <li><span class="font-bold text-red-500">Red bars</span> represent the initial investment, which is a negative cash flow.</li>
+                <li><span class="font-bold text-green-500">Green bars</span> represent positive cash inflows for each period.</li>
+                <li><span class="font-bold text-red-500">Red bars</span> for cash flow represent negative cash inflows (outflows) for each period.</li>
+                <li><span class="font-bold text-blue-500">Blue line</span> represents the cumulative cash flow over time.</li>
+                <li><span class="font-bold text-red-500">Red dot</span> marks the point in time when the cumulative cash flow first becomes positive or reaches zero, indicating the payback period. The exact payback period is displayed above the chart.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const initialInvestmentInput = document.getElementById('initialInvestmentInput');
+            const cashFlowInputsContainer = document.getElementById('cashFlowInputsContainer');
+            const addPeriodButton = document.getElementById('addPeriodButton');
+            const chartWrapper = document.getElementById('chartWrapper');
+            const chartContainer = document.getElementById('chartContainer');
+            const errorMessage = document.getElementById('errorMessage');
+            const paybackPeriodDisplay = document.getElementById('paybackPeriodDisplay'); // New element for display
+
+            // Function to clear all dynamic chart elements
+            function clearChart() {
+                const dynamicElements = chartContainer.querySelectorAll('.cash-flow-bar, .initial-investment, .cumulative-line, .payback-point-marker, .label:not(.axis-label), .cash-flow-value-label, .tooltip');
+                dynamicElements.forEach(el => el.remove());
+            }
+
+            // Function to add a new cash flow input field
+            function addPeriodInput(initialValue = '') {
+                const periodIndex = cashFlowInputsContainer.children.length + 1;
+
+                const inputColumn = document.createElement('div');
+                inputColumn.className = 'cash-flow-input-column';
+
+                const label = document.createElement('label');
+                label.htmlFor = `cashFlowInput${periodIndex}`;
+                label.innerText = `Year ${periodIndex}:`;
+
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.id = `cashFlowInput${periodIndex}`;
+                input.value = initialValue;
+                input.placeholder = `Year ${periodIndex} CF`;
+                input.addEventListener('input', drawChart); // Auto-update on input
+
+                inputColumn.appendChild(label);
+                inputColumn.appendChild(input);
+                cashFlowInputsContainer.appendChild(inputColumn);
+            }
+
+            // Main function to draw/update the chart
+            function drawChart() {
+                clearChart(); // Clear previous chart elements
+
+                const chartHeight = chartContainer.offsetHeight;
+                const wrapperClientWidth = chartWrapper.clientWidth;
+
+                const barWidth = 40;
+                const barSpacing = 80;
+
+                const chartPaddingLeft = 60; // Space for Y-axis labels and initial investment bar
+                const chartPaddingRight = 40; // Space at the end of the chart
+
+                let initialInvestment;
+                let cashFlowsData = [];
+
+                try {
+                    initialInvestment = parseFloat(initialInvestmentInput.value);
+                    if (isNaN(initialInvestment) || initialInvestment <= 0) {
+                        throw new Error('Initial investment must be a positive number.');
+                    }
+
+                    // Read values from all dynamically generated cash flow inputs
+                    const cashFlowInputElements = cashFlowInputsContainer.querySelectorAll('input[type="number"]');
+                    cashFlowInputElements.forEach((input, index) => {
+                        const flow = parseFloat(input.value);
+                        if (isNaN(flow)) {
+                            cashFlowsData.push({ period: index + 1, flow: 0 }); // Treat empty/invalid as 0
+                        } else {
+                            cashFlowsData.push({ period: index + 1, flow: flow });
+                        }
+                    });
+
+                    errorMessage.classList.add('hidden'); // Hide error message on successful parse
+                } catch (error) {
+                    errorMessage.innerText = `Input Error: ${error.message}`;
+                    errorMessage.classList.remove('hidden');
+                    paybackPeriodDisplay.innerText = ''; // Clear payback display on error
+                    return; // Stop drawing if input is invalid
+                }
+
+                // Calculate cumulative cash flows
+                let cumulativeFlows = [];
+                let currentCumulative = -initialInvestment;
+                cumulativeFlows.push({ period: 0, cumulative: currentCumulative });
+
+                cashFlowsData.forEach(cf => {
+                    currentCumulative += cf.flow;
+                    cumulativeFlows.push({ period: cf.period, cumulative: currentCumulative });
+                });
+
+                // Determine the total width needed for the chart content
+                const totalPeriods = cashFlowsData.length;
+                const requiredContentWidth = chartPaddingLeft + (totalPeriods + 1) * barSpacing + chartPaddingRight;
+
+                chartContainer.style.width = `${Math.max(wrapperClientWidth, requiredContentWidth)}px`;
+
+                const yAxisX = chartPaddingLeft;
+                const xAxisY = chartHeight / 2;
+
+                // Update Y-axis position
+                const yAxisLine = chartContainer.querySelector('.y-axis');
+                yAxisLine.style.left = `${yAxisX}px`;
+
+                // Update X-axis width
+                const xAxisLine = chartContainer.querySelector('.x-axis');
+                xAxisLine.style.width = `${chartContainer.offsetWidth}px`;
+
+                // Find max absolute value for scaling
+                const allValues = [initialInvestment, ...cashFlowsData.map(cf => Math.abs(cf.flow)), ...cumulativeFlows.map(cf => Math.abs(cf.cumulative))];
+                const maxAbsValue = Math.max(...allValues);
+
+                const scaleFactor = (chartHeight / 2 - 30) / (maxAbsValue > 0 ? maxAbsValue : 1);
+
+                // --- Render Initial Investment Bar ---
+                const initialInvestmentBar = document.createElement('div');
+                initialInvestmentBar.className = 'initial-investment';
+                initialInvestmentBar.style.height = `${initialInvestment * scaleFactor}px`;
+                initialInvestmentBar.style.left = `${yAxisX - barWidth / 2}px`;
+                initialInvestmentBar.style.top = `${xAxisY}px`;
+                chartContainer.appendChild(initialInvestmentBar);
+
+                const initialInvestmentTooltip = document.createElement('div');
+                initialInvestmentTooltip.className = 'tooltip';
+                initialInvestmentTooltip.innerText = `Initial Investment: -${initialInvestment}`;
+                initialInvestmentTooltip.style.left = `${yAxisX - barWidth / 2}px`;
+                initialInvestmentTooltip.style.top = `${xAxisY + initialInvestment * scaleFactor + 10}px`;
+                chartContainer.appendChild(initialInvestmentTooltip);
+
+                // --- Render Cash Flow Bars, Value Labels, and Period Labels ---
+                cashFlowsData.forEach((cf, index) => {
+                    const barCenterX = yAxisX + cf.period * barSpacing;
+
+                    const bar = document.createElement('div');
+                    bar.className = `cash-flow-bar ${cf.flow >= 0 ? 'bg-green-500' : 'bg-red-500'}`;
+                    bar.style.height = `${Math.abs(cf.flow) * scaleFactor}px`;
+                    bar.style.left = `${barCenterX - barWidth / 2}px`;
+                    if (cf.flow >= 0) {
+                        bar.style.bottom = `${xAxisY}px`;
+                    } else {
+                        bar.style.top = `${xAxisY}px`;
+                    }
+                    chartContainer.appendChild(bar);
+
+                    // Cash Flow Value Label on the bar
+                    const valueLabel = document.createElement('div');
+                    valueLabel.className = 'cash-flow-value-label';
+                    valueLabel.innerText = cf.flow.toFixed(0);
+                    valueLabel.style.left = `${barCenterX - barWidth / 2}px`;
+                    valueLabel.style.width = `${barWidth}px`;
+                    if (cf.flow >= 0) {
+                        valueLabel.style.bottom = `${xAxisY + Math.abs(cf.flow) * scaleFactor - 20}px`;
+                    } else {
+                        valueLabel.style.top = `${xAxisY + Math.abs(cf.flow) * scaleFactor - 20}px`;
+                    }
+                    chartContainer.appendChild(valueLabel);
+
+
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'tooltip';
+                    tooltip.innerText = `Year ${cf.period}: ${cf.flow > 0 ? '+' : ''}${cf.flow}`;
+                    tooltip.style.left = `${barCenterX - barWidth / 2}px`;
+                    if (cf.flow >= 0) {
+                        tooltip.style.bottom = `${xAxisY + Math.abs(cf.flow) * scaleFactor + 10}px`;
+                    } else {
+                        tooltip.style.top = `${xAxisY + Math.abs(cf.flow) * scaleFactor + 10}px`;
+                    }
+                    chartContainer.appendChild(tooltip);
+
+                    const periodLabel = document.createElement('div');
+                    periodLabel.className = 'label';
+                    periodLabel.innerText = `Year ${cf.period}`;
+                    chartContainer.appendChild(periodLabel);
+                    periodLabel.style.left = `${barCenterX - periodLabel.offsetWidth / 2}px`;
+                    periodLabel.style.bottom = `${xAxisY - 20}px`;
+                });
+
+                // --- Render Cumulative Cash Flow Line ---
+                let paybackPeriodFound = false;
+                let paybackX = 0;
+                let paybackY = 0;
+                let paybackPeriodValue = 0;
+
+                for (let i = 0; i < cumulativeFlows.length - 1; i++) {
+                    const p1 = cumulativeFlows[i];
+                    const p2 = cumulativeFlows[i + 1];
+
+                    const x1 = yAxisX + (p1.period * barSpacing);
+                    const y1 = xAxisY - (p1.cumulative * scaleFactor);
+
+                    const x2 = yAxisX + (p2.period * barSpacing);
+                    const y2 = xAxisY - (p2.cumulative * scaleFactor);
+
+                    const lineSegment = document.createElement('div');
+                    lineSegment.className = 'cumulative-line';
+                    const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+                    const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+                    lineSegment.style.width = `${length}px`;
+                    lineSegment.style.transform = `translate(${x1}px, ${y1}px) rotate(${angle}deg)`;
+                    lineSegment.style.transformOrigin = '0 0';
+                    chartContainer.appendChild(lineSegment);
+
+                    if (!paybackPeriodFound && ((p1.cumulative < 0 && p2.cumulative >= 0) || (p1.cumulative >= 0 && p2.cumulative < 0))) {
+                        const intersectPeriod = p1.period + (0 - p1.cumulative) / (p2.cumulative - p1.cumulative);
+                        const intersectX = yAxisX + intersectPeriod * barSpacing;
+
+                        paybackX = intersectX;
+                        paybackY = xAxisY;
+                        paybackPeriodValue = intersectPeriod;
+                        paybackPeriodFound = true;
+                    }
+                }
+
+                // --- Render Payback Point Marker and Display Payback Period ---
+                if (paybackPeriodFound) {
+                    const paybackMarker = document.createElement('div');
+                    paybackMarker.className = 'payback-point-marker';
+                    paybackMarker.style.left = `${paybackX}px`;
+                    paybackMarker.style.top = `${paybackY}px`;
+                    chartContainer.appendChild(paybackMarker);
+
+                    paybackPeriodDisplay.innerText = `Payback Period: ${paybackPeriodValue.toFixed(2)} Years`;
+                } else {
+                    paybackPeriodDisplay.innerText = 'Investment not recovered with current cash flows.';
+                }
+
+                // Add Y-axis labels
+                const yAxisLabels = [];
+                yAxisLabels.push(0);
+                if (initialInvestment > 0) yAxisLabels.push(-initialInvestment);
+                if (maxAbsValue > 0) yAxisLabels.push(maxAbsValue);
+                const uniqueYLabels = [...new Set(yAxisLabels)].sort((a, b) => a - b);
+
+                uniqueYLabels.forEach(val => {
+                    const label = document.createElement('div');
+                    label.className = 'label';
+                    label.innerText = val.toFixed(0);
+                    label.style.left = `${yAxisX - 40}px`;
+                    label.style.top = `${xAxisY - (val * scaleFactor) - 10}px`;
+                    chartContainer.appendChild(label);
+                });
+
+                // Adjust x-axis label position
+                const xAxisLabel = document.getElementById('xAxisLabel'); // Use getElementById
+                xAxisLabel.style.top = `${xAxisY + 20}px`;
+                xAxisLabel.style.left = `${yAxisX + (totalPeriods * barSpacing) / 2}px`;
+                xAxisLabel.style.transform = `translateX(-50%)`;
+
+                // Adjust y-axis main label position
+                const yAxisMainLabel = document.getElementById('yAxisMainLabel'); // Use getElementById
+                yAxisMainLabel.style.left = `${yAxisX - 50}px`;
+                yAxisMainLabel.style.top = `${chartHeight / 2}px`;
+                yAxisMainLabel.style.transform = `rotate(-90deg) translateY(-50%)`;
+            }
+
+            // Initial setup: Add a few default cash flow inputs
+            const defaultCashFlows = [30, 40, 35, 20, 25];
+            defaultCashFlows.forEach(flow => addPeriodInput(flow));
+
+            // Initial chart draw
+            drawChart();
+
+            // Event listeners
+            initialInvestmentInput.addEventListener('input', drawChart);
+            addPeriodButton.addEventListener('click', () => {
+                addPeriodInput(); // Add a new empty input field
+                drawChart(); // Redraw chart to adjust width if needed
+            });
+            window.addEventListener('resize', drawChart);
+        });
+    </script>
+</body>
+</html>
